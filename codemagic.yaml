@@ -1,0 +1,43 @@
+workflows:
+  android-workflow:
+    name: AgonApp Android Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      java: 17
+      vars:
+        PACKAGE_NAME: "com.agon.app"
+      groups:
+        - keystore_credentials  # add ANDROID_KEYSTORE, keystore passwords/alias here if you want signed release
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Build debug APK
+        script: |
+          cd $CM_BUILD_DIR
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Build release APK
+        script: |
+          cd $CM_BUILD_DIR
+          ./gradlew assembleRelease --stacktrace
+
+    artifacts:
+      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/**/mapping.txt
+      - app/build/reports/**
+
+    publishing:
+      email:
+        recipients:
+          - marslan0299@gmail.com
+        notify:
+          success: true
+          failure: true
