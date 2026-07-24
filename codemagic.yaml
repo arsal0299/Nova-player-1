@@ -19,6 +19,13 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
 
+      - name: Regenerate Gradle wrapper (in case wrapper jar missing)
+        script: |
+          cd $CM_BUILD_DIR
+          which gradle || brew install gradle
+          gradle wrapper --gradle-version 8.11.1
+          chmod +x ./gradlew
+
       - name: Build debug APK
         script: |
           cd $CM_BUILD_DIR
