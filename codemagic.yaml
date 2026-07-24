@@ -22,11 +22,13 @@ workflows:
       - name: Build debug APK
         script: |
           cd $CM_BUILD_DIR
+          chmod +x ./gradlew
           ./gradlew assembleDebug --stacktrace
 
       - name: Build release APK
         script: |
           cd $CM_BUILD_DIR
+          chmod +x ./gradlew
           ./gradlew assembleRelease --stacktrace
 
     artifacts:
