@@ -37,56 +37,61 @@ object MediaScanner {
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
-        contentResolver.query(
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            sortOrder,
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-            val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
-            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
-            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+        try {
+            contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                sortOrder,
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+                val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn)
-                    ?: cursor.getString(displayNameColumn)?.substringBeforeLast(".") ?: "Unknown"
-                val duration = cursor.getLong(durationColumn)
-                val size = cursor.getLong(sizeColumn)
-                val dateAdded = cursor.getLong(dateAddedColumn)
-                val width = cursor.getInt(widthColumn)
-                val height = cursor.getInt(heightColumn)
-                val path = cursor.getString(dataColumn) ?: ""
-                val folder = cursor.getString(bucketColumn) ?: ""
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(titleColumn)
+                        ?: cursor.getString(displayNameColumn)?.substringBeforeLast(".") ?: "Unknown"
+                    val duration = cursor.getLong(durationColumn)
+                    val size = cursor.getLong(sizeColumn)
+                    val dateAdded = cursor.getLong(dateAddedColumn)
+                    val width = cursor.getInt(widthColumn)
+                    val height = cursor.getInt(heightColumn)
+                    val path = cursor.getString(dataColumn) ?: ""
+                    val folder = cursor.getString(bucketColumn) ?: ""
 
-                val contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString())
-                val thumbUri = Uri.withAppendedPath(MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, id.toString())
+                    val contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString())
+                    val thumbUri = Uri.withAppendedPath(MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, id.toString())
 
-                videos.add(
-                    VideoItem(
-                        id = id,
-                        title = title,
-                        uri = contentUri,
-                        path = path,
-                        durationMs = duration,
-                        size = size,
-                        dateAdded = dateAdded,
-                        width = width,
-                        height = height,
-                        resolution = if (width > 0 && height > 0) "${width}x$height" else "",
-                        thumbnailUri = thumbUri,
-                        folderName = folder,
-                    ),
-                )
+                    videos.add(
+                        VideoItem(
+                            id = id,
+                            title = title,
+                            uri = contentUri,
+                            path = path,
+                            durationMs = duration,
+                            size = size,
+                            dateAdded = dateAdded,
+                            width = width,
+                            height = height,
+                            resolution = if (width > 0 && height > 0) "${width}x$height" else "",
+                            thumbnailUri = thumbUri,
+                            folderName = folder,
+                        ),
+                    )
+                }
             }
+        } catch (e: Exception) {
+            // MediaStore query fail ho sakti hai kuch OEM/permission edge-cases mein.
+            // Neeche wala filesystem fallback ise handle kar lega.
         }
 
         // Fallback: MediaStore ka database purane ya newly-copied files ko
