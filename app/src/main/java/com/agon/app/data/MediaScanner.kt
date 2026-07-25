@@ -3,14 +3,20 @@ package com.agon.app.data
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
 import android.provider.MediaStore
 import com.agon.app.data.model.AudioItem
 import com.agon.app.data.model.FolderItem
 import com.agon.app.data.model.VideoItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 object MediaScanner {
+
+    private val VIDEO_EXTENSIONS = setOf(
+        "mp4", "mkv", "avi", "mov", "3gp", "webm", "flv", "wmv", "m4v", "ts", "mpg", "mpeg",
+    )
 
     suspend fun scanVideos(context: Context): List<VideoItem> = withContext(Dispatchers.IO) {
         val videos = mutableListOf<VideoItem>()
@@ -83,7 +89,69 @@ object MediaScanner {
             }
         }
 
+        // Fallback: MediaStore ka database purane ya newly-copied files ko
+        // index nahi karta jab tak system scan na kare. Agar MediaStore se
+        // kuch na mile, to seedha storage folders scan karo.
+        if (videos.isEmpty()) {
+            videos.addAll(scanVideosFromFileSystem())
+        }
+
         videos
+    }
+
+    private fun scanVideosFromFileSystem(): List<VideoItem> {
+        val results = mutableListOf<VideoItem>()
+        val root = Environment.getExternalStorageDirectory()
+        val commonFolders = listOf(
+            root,
+            File(root, "Movies"),
+            File(root, "DCIM"),
+            File(root, "Download"),
+            File(root, "Downloads"),
+            File(root, "WhatsApp/Media/WhatsApp Video"),
+            File(root, "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video"),
+            File(root, "Telegram/Telegram Video"),
+            File(root, "Movies/CameraRecordings"),
+        )
+
+        val visited = HashSet<String>()
+        var idCounter = -1L
+
+        fun walk(dir: File, depth: Int) {
+            if (depth > 4) return
+            val canonical = try { dir.canonicalPath } catch (e: Exception) { return }
+            if (!visited.add(canonical)) return
+            val children = dir.listFiles() ?: return
+            for (file in children) {
+                if (file.isDirectory) {
+                    walk(file, depth + 1)
+                } else if (file.extension.lowercase() in VIDEO_EXTENSIONS && file.length() > 0) {
+                    val uri = Uri.fromFile(file)
+                    results.add(
+                        VideoItem(
+                            id = idCounter--,
+                            title = file.nameWithoutExtension,
+                            uri = uri,
+                            path = file.absolutePath,
+                            durationMs = 0L,
+                            size = file.length(),
+                            dateAdded = file.lastModified() / 1000,
+                            resolution = "",
+                            thumbnailUri = uri,
+                            folderName = file.parentFile?.name ?: "",
+                        ),
+                    )
+                }
+            }
+        }
+
+        for (folder in commonFolders) {
+            if (folder.exists() && folder.isDirectory) {
+                walk(folder, 0)
+            }
+        }
+
+        return results
     }
 
     suspend fun scanAudio(context: Context): List<AudioItem> = withContext(Dispatchers.IO) {
