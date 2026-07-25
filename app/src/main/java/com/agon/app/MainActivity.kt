@@ -86,6 +86,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                LaunchedEffect(mediaViewModel) {
+                    var lastLoading = false
+                    mediaViewModel.uiState.collect { state ->
+                        if (lastLoading && !state.isLoading) {
+                            val msg = if (state.errorMessage != null) {
+                                "Scan error: ${state.errorMessage}"
+                            } else {
+                                "Scan complete: ${state.videos.size} videos, ${state.audio.size} audio found"
+                            }
+                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                        }
+                        lastLoading = state.isLoading
+                    }
+                }
+
                 MainApp(
                     mediaViewModel = mediaViewModel,
                     playerViewModel = playerViewModel,
