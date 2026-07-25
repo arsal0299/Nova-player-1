@@ -32,7 +32,6 @@ object MediaScanner {
             MediaStore.Video.Media.WIDTH,
             MediaStore.Video.Media.HEIGHT,
             MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -54,7 +53,6 @@ object MediaScanner {
                 val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
                 val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
                 val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
@@ -66,7 +64,7 @@ object MediaScanner {
                     val width = cursor.getInt(widthColumn)
                     val height = cursor.getInt(heightColumn)
                     val path = cursor.getString(dataColumn) ?: ""
-                    val folder = cursor.getString(bucketColumn) ?: ""
+                    val folder = path.substringBeforeLast("/", "").substringAfterLast("/", "Internal")
 
                     val contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString())
                     val thumbUri = Uri.withAppendedPath(MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, id.toString())
@@ -173,63 +171,66 @@ object MediaScanner {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.BUCKET_DISPLAY_NAME,
         )
 
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
 
-        contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0",
-            null,
-            sortOrder,
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-            val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-            val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME)
+        try {
+            contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+                null,
+                sortOrder,
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn)
-                    ?: cursor.getString(displayNameColumn)?.substringBeforeLast(".") ?: "Unknown"
-                val duration = cursor.getLong(durationColumn)
-                val size = cursor.getLong(sizeColumn)
-                val dateAdded = cursor.getLong(dateAddedColumn)
-                val artist = cursor.getString(artistColumn) ?: "Unknown Artist"
-                val album = cursor.getString(albumColumn) ?: "Unknown Album"
-                val path = cursor.getString(dataColumn) ?: ""
-                val folder = cursor.getString(bucketColumn) ?: ""
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(titleColumn)
+                        ?: cursor.getString(displayNameColumn)?.substringBeforeLast(".") ?: "Unknown"
+                    val duration = cursor.getLong(durationColumn)
+                    val size = cursor.getLong(sizeColumn)
+                    val dateAdded = cursor.getLong(dateAddedColumn)
+                    val artist = cursor.getString(artistColumn) ?: "Unknown Artist"
+                    val album = cursor.getString(albumColumn) ?: "Unknown Album"
+                    val path = cursor.getString(dataColumn) ?: ""
+                    val folder = path.substringBeforeLast("/", "").substringAfterLast("/", "Internal")
 
-                val contentUri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString())
-                val albumArtUri = Uri.parse("content://media/external/audio/albumart")
-                    .buildUpon()
-                    .appendPath(id.toString())
-                    .build()
+                    val contentUri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString())
+                    val albumArtUri = Uri.parse("content://media/external/audio/albumart")
+                        .buildUpon()
+                        .appendPath(id.toString())
+                        .build()
 
-                audioList.add(
-                    AudioItem(
-                        id = id,
-                        title = title,
-                        uri = contentUri,
-                        path = path,
-                        durationMs = duration,
-                        size = size,
-                        dateAdded = dateAdded,
-                        artist = artist,
-                        album = album,
-                        albumArtUri = albumArtUri,
-                        folderName = folder,
-                    ),
-                )
+                    audioList.add(
+                        AudioItem(
+                            id = id,
+                            title = title,
+                            uri = contentUri,
+                            path = path,
+                            durationMs = duration,
+                            size = size,
+                            dateAdded = dateAdded,
+                            artist = artist,
+                            album = album,
+                            albumArtUri = albumArtUri,
+                            folderName = folder,
+                        ),
+                    )
+                }
             }
+        } catch (e: Exception) {
+            // Kuch devices ke MediaStore schema mein farak hota hai — audio scan
+            // fail hone par bhi crash na ho, bas khaali list return ho.
         }
 
         audioList
